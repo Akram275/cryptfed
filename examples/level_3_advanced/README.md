@@ -46,7 +46,7 @@ python UCI_Adult_example.py
 **Production-scale image classification**
 - Full CIFAR-10 dataset
 - Robust CNN architecture
-- ⚖️ Multiple aggregation strategies
+- Multiple aggregation strategies
 - Configurable for different scenarios
 
 ```bash
