@@ -151,6 +151,83 @@ def run_byzantine_experiment(aggregator_name, aggregator_args, attack_type, num_
         "filename": filename
     }
 
+def run_secure_krum_experiment(aggregator_args, attack_type, num_byzantine=3):
+    """Run SecureKrum experiment with encrypted aggregation against Byzantine attacks."""
+    logger.info(f"Testing SecureKrum (encrypted) against {attack_type} attacks")
+    
+    # Load CIFAR-10
+    (x_train, y_train), (x_test, y_test) = tf.keras.datasets.cifar10.load_data()
+    x_train, x_test = x_train / 255.0, x_test / 255.0
+    y_train, y_test = y_train.flatten(), y_test.flatten()
+    
+    # Smaller model for FHE efficiency (same as FHE baseline)
+    def create_secure_model():
+        model = models.Sequential([
+            layers.Input(shape=(32, 32, 3)),
+            layers.Flatten(),
+            layers.Dense(64, activation='relu'),
+            layers.Dense(32, activation='relu'), 
+            layers.Dense(10, activation='softmax')
+        ])
+        model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+        return model
+    
+    # Use smaller subset for FHE efficiency
+    subset_size = 2000
+    indices = np.random.choice(len(x_train), subset_size, replace=False)
+    x_train_subset = x_train[indices]
+    y_train_subset = y_train[indices]
+    
+    # Create non-IID distribution
+    num_clients = 8
+    client_datasets = create_non_iid_cifar(x_train_subset, y_train_subset, num_clients)
+    
+    # Create clients (mix of honest and Byzantine)
+    clients = []
+    for i, (x_client, y_client) in enumerate(client_datasets):
+        is_byzantine = i < num_byzantine
+        
+        client = FederatedClient(
+            client_id=f"secure_client_{i}{'_byzantine' if is_byzantine else '_honest'}",
+            model_fn=create_secure_model,
+            x_train=x_client,
+            y_train=y_client,
+            local_epochs=1,
+            byzantine=is_byzantine,
+            attack_type=attack_type if is_byzantine else None,
+            attack_args={"scale": 2.0} if attack_type == "random_noise" else {}
+        )
+        clients.append(client)
+    
+    # Run SecureKrum with FHE
+    orchestrator = CrypTFed(
+        model_fn=create_secure_model,
+        clients=clients,
+        test_data=(x_test, y_test),
+        use_fhe=True,
+        fhe_scheme="ckks",  # Use CKKS for SecureKrum
+        aggregator_name="secure_krum",
+        aggregator_args=aggregator_args,
+        num_rounds=5,  # Fewer rounds due to FHE overhead
+        client_sampling_proportion=1.0,  # All clients for better Byzantine tolerance
+        enable_benchmarking=True
+    )
+    
+    final_model = orchestrator.run()
+    loss, accuracy = final_model.evaluate(x_test, y_test, verbose=0)
+    
+    # Export results
+    filename = f"secure_krum_{attack_type}_results.csv"
+    orchestrator.evaluate_and_export(filename)
+    
+    return {
+        "aggregator": "secure_krum (encrypted)",
+        "attack": attack_type,
+        "accuracy": accuracy,
+        "loss": loss,
+        "filename": filename
+    }
+
 def run_threshold_fhe_baseline():
     """Run threshold FHE experiment as a secure baseline."""
     logger.info("Running threshold FHE baseline (secure but non-robust)")
@@ -235,6 +312,12 @@ def main():
         ("plaintext_fedavg", {}, "label_shuffling"),  # Vulnerable baseline
     ]
     
+    # Test SecureKrum (encrypted Byzantine-robust aggregator)
+    secure_tests = [
+        ("secure_krum", {"f": 4}, "random_noise"),
+        ("secure_krum", {"f": 4}, "sign_flipping"),
+    ]
+    
     # Run Byzantine robustness experiments
     byzantine_results = []
     logger.info(f"Testing {len(robust_tests)} robust aggregator configurations...")
@@ -246,6 +329,17 @@ def main():
             logger.info(f"{aggregator} vs {attack}: {result['accuracy']:.4f}")
         except Exception as e:
             logger.error(f"Error with {aggregator} vs {attack}: {e}")
+    
+    # Run SecureKrum experiments
+    logger.info(f"Testing {len(secure_tests)} SecureKrum (encrypted) configurations...")
+    
+    for aggregator, args, attack in secure_tests:
+        try:
+            result = run_secure_krum_experiment(args, attack)
+            byzantine_results.append(result)
+            logger.info(f"SecureKrum (encrypted) vs {attack}: {result['accuracy']:.4f}")
+        except Exception as e:
+            logger.error(f"Error with SecureKrum vs {attack}: {e}")
     
     # Run threshold FHE baseline
     try:

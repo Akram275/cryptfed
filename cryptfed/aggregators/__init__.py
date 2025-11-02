@@ -15,6 +15,7 @@ try:
     from .secure_ckks_fedavg import SecureCkksFedAvg
     from .secure_integer_fedavg import SecureIntegerFedAvg
     from .secure_trimmed_mean import SecureTrimmedMean
+    from .secure_krum import SecureKrum
 except ImportError as e:
     print(f"Warning: FHE aggregators not available. OpenFHE not properly installed.")
     print("Only plaintext federated learning will be available.")
@@ -22,6 +23,7 @@ except ImportError as e:
     SecureCkksFedAvg = None
     SecureIntegerFedAvg = None
     SecureTrimmedMean = None
+    SecureKrum = None
     FHE_AVAILABLE = False
 
 # The Aggregator Registry
@@ -45,4 +47,5 @@ if FHE_AVAILABLE:
         "integer_fedavg": SecureIntegerFedAvg,
         "fedavgm": FedAvgMomentum,  # Note: This currently only works with CKKS
         "secure_trimmed_mean": SecureTrimmedMean,
+        "secure_krum": SecureKrum,
     })

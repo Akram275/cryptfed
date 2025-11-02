@@ -169,6 +169,9 @@ class FederatedServer:
                 if "integer" in self.aggregator.__class__.__name__.lower():
                     agg_kwargs['cc'] = self.fhe_manager.cc
                     agg_kwargs['vec_len'] = self.fhe_manager.slot_count
+                elif "securekrum" in self.aggregator.__class__.__name__.lower():
+                    agg_kwargs['cc'] = self.fhe_manager.cc
+                    agg_kwargs['fhe_manager'] = self.fhe_manager
                 aggregated_chunk = self.aggregator.aggregate(chunks_for_this_index, list(weights), **agg_kwargs)
                 aggregated_chunks.append(aggregated_chunk)
             new_encrypted_model = aggregated_chunks

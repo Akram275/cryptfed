@@ -7,12 +7,25 @@ Master-level examples showcasing the full power of CrypTFed: Byzantine robustnes
 ### 1. `byzantine_robustness_comparison.py` 
 **Comprehensive Byzantine attack vs robust aggregator analysis**
 - Tests all robust aggregators (Krum, Multi-Krum, FLAME, FoolsGold, etc.)
+- **NEW**: SecureKrum (encrypted Byzantine-robust aggregation)
 - ⚔️ Multiple Byzantine attack simulations
 - Compares with threshold FHE baseline
 - Full benchmark analysis and recommendations
 
 ```bash
 python byzantine_robustness_comparison.py
+```
+
+### 2. `secure_krum_mnist_example.py`
+**SecureKrum demonstration with Byzantine robustness**
+- Encrypted Krum aggregation preserving update privacy
+- Proper Byzantine attack simulation using built-in FederatedClient attacks
+- Tests multiple attack types: random_noise, sign_flipping, label_shuffling, gradient_ascent
+- Support for both CKKS and BFV encryption schemes
+- Comparative analysis across different attack scenarios
+
+```bash
+python secure_krum_mnist_example.py
 ```
 
 ### 2. `test_ACSIncome.py`
@@ -72,11 +85,12 @@ Understanding when and how to use each robust aggregator:
 ```python
 # For different threat models
 aggregators = {
-    "trimmed_mean": {"beta": 2},      # Basic outlier removal
-    "krum": {"f": 4},                 # Single best update selection  
-    "multi_krum": {"f": 4, "m": 8},   # Multiple good updates
+    "trimmed_mean": {"beta": 2},         # Basic outlier removal
+    "krum": {"f": 4},                    # Single best update selection  
+    "multi_krum": {"f": 4, "m": 8},      # Multiple good updates
     "flame": {"cluster_threshold": 0.6}, # Clustering-based
-    "fools_gold": {"memory_size": 5},  # Historical analysis
+    "fools_gold": {"memory_size": 5},    # Historical analysis
+    "secure_krum": {"f": 4},             # Encrypted Byzantine-robust
 }
 ```
 
@@ -98,10 +112,10 @@ config = {
 
 | Attack | Description | Impact | Best Defense |
 |--------|-------------|--------|--------------|
-| **Label Shuffling** | Corrupts training labels | High | Krum, Multi-Krum |
-| **Sign Flipping** | Flips gradient directions | High | Trimmed Mean, FLAME |
-| **Random Noise** | Adds noise to updates | Medium | FoolsGold, Median |
-| **Gradient Ascent** | Maximizes loss instead of minimizing | High | Robust aggregators |
+| **Label Shuffling** | Corrupts training labels | High | Krum, Multi-Krum, SecureKrum |
+| **Sign Flipping** | Flips gradient directions | High | Trimmed Mean, FLAME, SecureKrum |
+| **Random Noise** | Adds noise to updates | Medium | FoolsGold, Median, SecureKrum |
+| **Gradient Ascent** | Maximizes loss instead of minimizing | High | Robust aggregators, SecureKrum |
 
 ## Security vs Performance Trade-offs
 
@@ -111,6 +125,17 @@ config = {
 orchestrator = CrypTFed(
     use_fhe=False,
     aggregator_name="krum",  # Byzantine-robust
+    aggregator_args={"f": num_byzantine_clients}
+)
+```
+
+### SecureKrum (Encrypted Byzantine-Robust)
+```python
+# Privacy + Byzantine robustness in encrypted domain
+orchestrator = CrypTFed(
+    use_fhe=True,
+    fhe_scheme="ckks",  # Or "bfv"
+    aggregator_name="secure_krum",  # Encrypted Krum
     aggregator_args={"f": num_byzantine_clients}
 )
 ```
@@ -142,6 +167,7 @@ orchestrator = CrypTFed(
 ```
 COMPREHENSIVE BYZANTINE ROBUSTNESS COMPARISON
 Method                   Attack          Accuracy     Robustness
+secure_krum (encrypted) random_noise     0.8456      High + Private
 krum                    label_shuffling  0.8234      High
 multi_krum              sign_flipping    0.8156      High  
 flame                   random_noise     0.7834      Medium
@@ -149,9 +175,9 @@ trimmed_mean            label_shuffling  0.7756      Medium
 plaintext_fedavg        label_shuffling  0.2341      Low
 Threshold FHE (CKKS)    None (secure)    0.8445      Encrypted
 
-Best robust aggregator: krum (0.8234)
+Best robust aggregator: secure_krum (0.8456) - encrypted
 Threshold FHE accuracy: 0.8445
-Threshold FHE provides better accuracy but with privacy guarantees
+SecureKrum provides Byzantine robustness while preserving privacy
 ```
 
 ## Production Considerations

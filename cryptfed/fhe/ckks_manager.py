@@ -22,8 +22,13 @@ class CKKSManager(BaseFHEManager):
         self.cc.Enable(PKESchemeFeature.PKE)
         self.cc.Enable(PKESchemeFeature.KEYSWITCH)
         self.cc.Enable(PKESchemeFeature.LEVELEDSHE)
+        self.cc.Enable(PKESchemeFeature.ADVANCEDSHE)  # Required for EvalSumKeyGen
         self.keys = self.cc.KeyGen()
         self.cc.EvalMultKeyGen(self.keys.secretKey)
+        
+        # Generate automorphism keys for rotation and sum operations
+        self.cc.EvalSumKeyGen(self.keys.secretKey)
+        
         self._public_context = {"cc": self.cc, "pk": self.keys.publicKey}
         self._secret_key = self.keys.secretKey
         self.slot_count = self.cc.GetRingDimension() // 2
