@@ -1,21 +1,20 @@
 # CrypTFed: Privacy-Preserving Federated Learning with Homomorphic Encryption
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TensorFlow 2.8+](https://img.shields.io/badge/TensorFlow-2.8+-orange.svg)](https://www.tensorflow.org/)
 
 **CrypTFed** is a comprehensive federated learning library that combines **privacy-preserving cryptography** with **Byzantine-robust aggregation algorithms**. It enables secure, decentralized machine learning with homomorphic encryption (FHE) while defending against malicious participants.
 
-## **Key Features**
+## Key Features
 
 - **Homomorphic Encryption**: Support for CKKS, BFV, and BGV schemes (single-key & threshold)
 - **Byzantine Robustness**: Multiple aggregation algorithms (Krum, FLAME, FoolsGold, etc.)
-- **⚡ High Performance**: Optimized for real-world federated learning scenarios
+- **High Performance**: Optimized for real-world federated learning scenarios
 - **Comprehensive Benchmarking**: Built-in performance and security metrics
 - **Easy Integration**: Simple API compatible with TensorFlow/Keras models
 - **Rich Examples**: From basic tutorials to advanced research scenarios
 
-## **Architecture**
+## Architecture
 
 ```
 ┌─────────────────┬──────────────────┬─────────────────┐
@@ -29,7 +28,7 @@
 └─────────────────┴──────────────────┴─────────────────┘
 ```
 
-## 📦 **Installation**
+## Installation
 
 ### Prerequisites
 - Python 3.8+
@@ -112,7 +111,7 @@ pip install cryptfed[plotting]     # Enhanced plotting
 pip install cryptfed[datasets]     # Additional datasets
 ```
 
-## **Quick Start**
+## Quick Start
 
 ### Setup Environment
 ```bash
@@ -199,7 +198,7 @@ orchestrator = CrypTFed(
 )
 ```
 
-## **Examples**
+## Examples
 
 ### Level 1: Basic Examples
 - [`basic_mnist.py`](examples/level_1_basic/basic_mnist.py) - Simple MNIST federated learning
@@ -214,7 +213,7 @@ orchestrator = CrypTFed(
 - [`byzantine_robustness_comparison.py`](examples/level_3_advanced/byzantine_robustness_comparison.py) - Full robustness evaluation
 - [`UCI_Adult_example.py`](examples/level_3_advanced/UCI_Adult_example.py) - Real-world tabular data
 
-## **Supported Algorithms**
+## Supported Algorithms
 
 ### FHE Schemes
 - **CKKS**: Approximate arithmetic for real numbers
@@ -236,16 +235,16 @@ orchestrator = CrypTFed(
 - **Random Noise**: Adds Gaussian noise to updates
 - **Label Shuffling**: Corrupts training labels
 
-## **Benchmarking & Metrics**
+## Benchmarking & Metrics
 
 CrypTFed provides comprehensive benchmarking across multiple dimensions:
 
 - **FHE Performance**: Encryption/decryption times, key generation
-- **📡 Network Overhead**: Ciphertext sizes, bandwidth usage  
+- **Network Overhead**: Ciphertext sizes, bandwidth usage  
 - **Model Quality**: Accuracy, loss, convergence rates
-- **💾 System Resources**: Memory usage, computation time
+- **System Resources**: Memory usage, computation time
 
-## **Research Applications**
+## Research Applications
 
 CrypTFed has been used in research for:
 - Privacy-preserving healthcare analytics
@@ -253,55 +252,10 @@ CrypTFed has been used in research for:
 - Edge computing with IoT devices
 - Federated learning in adversarial environments
 
-## **Documentation**
+## Documentation
 
 - **[Installation Guide](docs/installation.md)** - Detailed setup instructions
 - **[API Reference](docs/api/)** - Complete API documentation  
 - **[Examples Guide](examples/README.md)** - Comprehensive examples
 - **[Performance Benchmarks](docs/benchmarks.md)** - Performance analysis
 - **[Security Model](docs/security.md)** - Threat model and guarantees
-
-## 🤝 **Contributing**
-
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
-
-### Development Setup
-```bash
-git clone https://github.com/cryptfed/cryptfed.git
-cd cryptfed
-pip install -e .[dev]
-pytest  # Run tests
-```
-
-## 📄 **License**
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 📮 **Citation**
-
-If you use CrypTFed in your research, please cite:
-
-```bibtex
-@software{cryptfed2025,
-  title={CrypTFed: Privacy-Preserving Federated Learning with Homomorphic Encryption},
-  author={CrypTFed Team},
-  year={2025},
-  url={https://github.com/cryptfed/cryptfed}
-}
-```
-
-## 🆘 **Support**
-
-- **Issues**: [GitHub Issues](https://github.com/cryptfed/cryptfed/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/cryptfed/cryptfed/discussions)
-- **Email**: contact@cryptfed.org
-
-## 🌟 **Acknowledgments**
-
-- Built on [OpenFHE](https://www.openfhe.org/) for homomorphic encryption
-- Inspired by [TensorFlow Federated](https://www.tensorflow.org/federated)
-- Research supported by [Institution/Grant]
-
----
-
-**Star us on GitHub if you find CrypTFed useful!**
