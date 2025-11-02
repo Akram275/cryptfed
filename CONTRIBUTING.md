@@ -1,29 +1,54 @@
-# Contributing to CrypTFed
+# Contributing to CrypTFed# Contributing to CrypTFed
 
-We love contributions! CrypTFed is an open-source project and we welcome contributions from the community.
 
-## **How to Contribute**
 
-### Reporting Bugs
-- Use the [GitHub Issues](https://github.com/cryptfed/cryptfed/issues) tracker
-- Include a clear title and description
-- Provide steps to reproduce the issue
+Thanks for your interest in CrypTFed! This is a research project focused on privacy-preserving federated learning.We love contributions! CrypTFed is an open-source project and we welcome contributions from the community.
+
+
+
+## Getting Started## **How to Contribute**
+
+
+
+1. Fork the repository### Reporting Bugs
+
+2. Create a virtual environment: `python -m venv venv`- Use the [GitHub Issues](https://github.com/cryptfed/cryptfed/issues) tracker
+
+3. Install dependencies: `pip install -r requirements.txt`- Include a clear title and description
+
+4. Install in development mode: `pip install -e .`- Provide steps to reproduce the issue
+
 - Include your environment details (Python version, OS, etc.)
 
+## Contributing
+
 ### **Suggesting Features**
-- Open an issue with the "enhancement" label
-- Describe the feature and its benefits
-- Explain why this feature would be useful
 
-### **Contributing Code**
+- **Bug reports**: Open an issue with details about the problem- Open an issue with the "enhancement" label
 
-#### Development Setup
-```bash
-# Fork the repository on GitHub
+- **Feature requests**: Open an issue describing what you'd like to see- Describe the feature and its benefits
+
+- **Code contributions**: Fork, make changes, and submit a pull request- Explain why this feature would be useful
+
+
+
+## Code Style### **Contributing Code**
+
+
+
+- Follow PEP 8#### Development Setup
+
+- Add docstrings to new functions```bash
+
+- Test your changes with the examples# Fork the repository on GitHub
+
 git clone https://github.com/your-username/cryptfed.git
-cd cryptfed
 
-# Create a virtual environment
+## Questions?cd cryptfed
+
+
+
+Feel free to open an issue or reach out if you have questions about the codebase.# Create a virtual environment
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
