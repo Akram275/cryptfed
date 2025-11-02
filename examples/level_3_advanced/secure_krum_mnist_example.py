@@ -211,7 +211,7 @@ def run_comparison_experiment():
         logger.info(f"  {best_result['scheme'].upper()} SecureKrum vs {best_result['attack_type']}: {best_result['accuracy']:.4f} accuracy")
         logger.info(f"  Successfully defended against {best_result['num_byzantine']} Byzantine clients")
     
-    logger.info("\n🔒 SecureKrum Analysis:")
+    logger.info("\nSecureKrum Analysis:")
     logger.info("- Model updates remain encrypted throughout aggregation")
     logger.info("- Only distance scores are decrypted for client selection")
     logger.info("- Byzantine robustness preserved while maintaining privacy")
