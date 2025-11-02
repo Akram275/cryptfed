@@ -33,12 +33,12 @@
 ### Prerequisites
 - Python 3.8+
 - TensorFlow 2.8+
-- Git (for development install)
+- Git
 
-### Option 1: Development Install (Recommended)
+### Install from Source (Only Option Currently)
 ```bash
 # Clone the repository
-git clone https://github.com/cryptfed/cryptfed.git
+git clone https://github.com/Akram275/cryptfed.git
 cd cryptfed
 
 # Create and activate virtual environment
@@ -54,17 +54,7 @@ pip install -e .
 - `LD_LIBRARY_PATH` for OpenFHE shared libraries
 - Full FHE functionality
 
-### Option 2: Quick Install (PyPI)
-```bash
-pip install cryptfed
-```
-
-**Note**: For PyPI installation, you may need to manually set library paths if FHE features are not working:
-```bash
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(python -c "import cryptfed; print(cryptfed.__path__[0])")/../../lib/python*/site-packages/openfhe/lib
-```
-
-### Option 3: Manual Environment Setup
+### Alternative: Manual Environment Setup
 If you need to set up the environment manually:
 ```bash
 # Set Python path for imports
@@ -103,13 +93,6 @@ Common issues and solutions:
 
 **Issue**: FHE aggregators not available
 **Solution**: Run `source venv/bin/activate` to properly set up the environment.
-
-### With Optional Features
-```bash
-pip install cryptfed[all]          # All features
-pip install cryptfed[plotting]     # Enhanced plotting
-pip install cryptfed[datasets]     # Additional datasets
-```
 
 ## Quick Start
 
