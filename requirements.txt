@@ -1,0 +1,13 @@
+# Core dependencies for CrypTFed
+numpy>=1.21.0
+tensorflow>=2.8.0
+openfhe-numpy>=0.1.0
+tqdm>=4.60.0
+pandas>=1.3.0
+matplotlib>=3.3.0
+psutil>=5.8.0
+scikit-learn>=1.0.0
+
+# Optional dependencies (install with pip install cryptfed[all])
+# seaborn>=0.11.0          # Enhanced plotting
+# folktables>=1.0.0        # Additional datasets

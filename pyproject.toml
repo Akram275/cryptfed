@@ -1,0 +1,145 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cryptfed"
+version = "1.0.0"
+description = "CrypTFed: A Federated Learning Library with Homomorphic Encryption for TensorFlow"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "CrypTFed Team", email = "contact@cryptfed.org"}
+]
+maintainers = [
+    {name = "CrypTFed Team", email = "contact@cryptfed.org"}
+]
+keywords = [
+    "federated-learning",
+    "homomorphic-encryption", 
+    "privacy-preserving",
+    "machine-learning",
+    "cryptography",
+    "byzantine-robustness"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Security :: Cryptography",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "numpy>=1.21.0",
+    "tensorflow>=2.8.0",
+    "openfhe-numpy>=0.1.0",
+    "tqdm>=4.60.0",
+    "pandas>=1.3.0",
+    "matplotlib>=3.3.0",
+    "psutil>=5.8.0",
+    "scikit-learn>=1.0.0",
+]
+
+[project.optional-dependencies]
+plotting = [
+    "seaborn>=0.11.0",
+]
+datasets = [
+    "folktables>=1.0.0",
+]
+dev = [
+    "pytest>=6.0.0",
+    "pytest-cov>=2.10.0",
+    "black>=21.0.0",
+    "flake8>=3.8.0",
+    "mypy>=0.900",
+]
+all = [
+    "seaborn>=0.11.0",
+    "folktables>=1.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/cryptfed/cryptfed"
+Documentation = "https://cryptfed.readthedocs.io/"
+Repository = "https://github.com/cryptfed/cryptfed.git"
+"Bug Reports" = "https://github.com/cryptfed/cryptfed/issues"
+Changelog = "https://github.com/cryptfed/cryptfed/blob/main/CHANGELOG.md"
+
+[tool.setuptools]
+packages = ["cryptfed"]
+
+[tool.setuptools.package-data]
+cryptfed = ["py.typed"]
+
+[tool.black]
+line-length = 88
+target-version = ['py38']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--strict-markers",
+    "--disable-warnings",
+    "-v"
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "fhe: marks tests that require FHE operations",
+]
+
+[tool.coverage.run]
+source = ["cryptfed"]
+omit = [
+    "*/tests/*",
+    "*/examples/*",
+    "*/__pycache__/*",
+    "*/venv/*"
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+]
