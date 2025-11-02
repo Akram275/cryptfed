@@ -1,8 +1,8 @@
 # Level 1: Basic Examples
 
-Simple, straightforward examples to get you started with Synergia federated learning.
+Simple, straightforward examples to get you started with CrypTFed federated learning.
 
-## 📚 Examples in this Level
+## Examples in this Level
 
 ### 1. `basic_mnist.py` 
 **Quick MNIST federated learning setup**
@@ -42,25 +42,25 @@ python basic_tabular.py
 
 After running these examples, you should understand:
 
-1. **Basic Synergia workflow**:
+1. **Basic CrypTFed workflow**:
    ```python
    # Create clients
    clients = [FederatedClient(...) for i in range(num_clients)]
    
    # Create orchestrator  
-   orchestrator = Synergia(model_fn, clients, test_data, ...)
+   orchestrator = CrypTFed(model_fn, clients, test_data, ...)
    
    # Run federated training
    final_model = orchestrator.run()
    ```
 
-2. **Model definition** - How to create TensorFlow/Keras models compatible with Synergia
+2. **Model definition** - How to create TensorFlow/Keras models compatible with CrypTFed
 
 3. **Data partitioning** - Simple ways to split datasets across clients
 
 4. **Basic configuration** - Essential parameters for federated learning
 
-## ⚡ Quick Start
+## Quick Start
 
 1. **Pick an example** that matches your data type (images vs tabular)
 2. **Run it directly** - no configuration needed
@@ -95,16 +95,16 @@ def create_larger_model():
     ])
 ```
 
-## ➡️ Next Steps
+## Next Steps
 
 Once comfortable with Level 1:
 - **Level 2**: Explore FHE encryption and advanced features
 - **Level 3**: Byzantine robustness and production scenarios
 
-## 🎉 Success Criteria
+## Success Criteria
 
 You've mastered Level 1 when you can:
 - Run all three examples successfully
 - Modify client numbers and training rounds
-- Understand the basic Synergia workflow
+- Understand the basic CrypTFed workflow
 - Ready to explore encryption and advanced aggregation!

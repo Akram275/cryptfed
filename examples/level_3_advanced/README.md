@@ -1,6 +1,6 @@
 # Level 3: Advanced Examples
 
-Master-level examples showcasing the full power of Synergia: Byzantine robustness, real-world datasets, and production-ready federated learning.
+Master-level examples showcasing the full power of CrypTFed: Byzantine robustness, real-world datasets, and production-ready federated learning.
 
 ## Examples in this Level
 
@@ -108,7 +108,7 @@ config = {
 ### Plaintext Robust Aggregation
 ```python
 # High robustness, no encryption
-orchestrator = Synergia(
+orchestrator = CrypTFed(
     use_fhe=False,
     aggregator_name="krum",  # Byzantine-robust
     aggregator_args={"f": num_byzantine_clients}
@@ -118,7 +118,7 @@ orchestrator = Synergia(
 ### Threshold FHE with Basic Aggregation  
 ```python
 # High privacy, basic robustness
-orchestrator = Synergia(
+orchestrator = CrypTFed(
     use_fhe=True,
     crypto_setting="threshold", 
     aggregator_name="auto",  # Secure FedAvg
@@ -129,10 +129,10 @@ orchestrator = Synergia(
 ### Hybrid Approach (Decrypt → Robust Aggregate → Re-encrypt)
 ```python
 # Both privacy and robustness (slower)
-orchestrator = Synergia(
+orchestrator = CrypTFed(
     use_fhe=True,
     aggregator_name="trimmed_mean",  # Requires plaintext
-    # Synergia automatically handles decrypt/re-encrypt
+    # CrypTFed automatically handles decrypt/re-encrypt
 )
 ```
 

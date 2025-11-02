@@ -1,14 +1,14 @@
 # Level 2: Intermediate Examples 
 
-Explore advanced Synergia features including FHE encryption, threshold cryptography, and comprehensive benchmarking.
+Explore advanced CrypTFed features including FHE encryption, threshold cryptography, and comprehensive benchmarking.
 
-## 📚 Examples in this Level
+## Examples in this Level
 
 ### 1. `threshold_fhe_mnist.py`
 **Threshold FHE with comprehensive logging**
 - Threshold CKKS encryption (3-of-8 scheme)
 - Non-IID data distribution  
-- 📝 Comprehensive logging setup
+- Comprehensive logging setup
 - Benchmark manager integration
 - Client sampling (75% participation)
 
@@ -24,8 +24,8 @@ python threshold_fhe_mnist.py
 
 ### 2. `fhe_schemes_comparison.py` 
 **Compare different FHE schemes**
-- 🔍 Tests BFV, BGV, CKKS, and Threshold CKKS
-- ⚖️ Performance and accuracy comparison
+- Tests BFV, BGV, CKKS, and Threshold CKKS
+- Performance and accuracy comparison
 - Automated benchmarking
 - Identifies best-performing scheme
 
@@ -45,7 +45,7 @@ After completing Level 2, you'll understand:
 
 1. **Threshold Cryptography**:
    ```python
-   orchestrator = Synergia(
+   orchestrator = CrypTFed(
        crypto_setting="threshold",
        fhe_scheme="threshold_ckks", 
        threshold_parties=3,  # Need 3 clients to decrypt
@@ -159,7 +159,7 @@ if orchestrator.server.benchmark_manager:
 - **Memory Usage**: 2-4x higher with FHE
 - **Model Size**: Keep under 10K parameters for efficiency
 
-## ➡️ Next Steps
+## Next Steps
 
 Ready for Level 3? You should:
 - Successfully run both examples
