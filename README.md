@@ -227,14 +227,6 @@ CrypTFed provides comprehensive benchmarking across multiple dimensions:
 - **Model Quality**: Accuracy, loss, convergence rates
 - **System Resources**: Memory usage, computation time
 
-## Research Applications
-
-CrypTFed has been used in research for:
-- Privacy-preserving healthcare analytics
-- Financial fraud detection with regulatory compliance
-- Edge computing with IoT devices
-- Federated learning in adversarial environments
-
 ## Documentation
 
 - **[Installation Guide](docs/installation.md)** - Detailed setup instructions
