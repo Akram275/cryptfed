@@ -4,7 +4,7 @@ We love contributions! CrypTFed is an open-source project and we welcome contrib
 
 ## **How to Contribute**
 
-### 🐛 **Reporting Bugs**
+### Reporting Bugs
 - Use the [GitHub Issues](https://github.com/cryptfed/cryptfed/issues) tracker
 - Include a clear title and description
 - Provide steps to reproduce the issue
@@ -57,7 +57,7 @@ pytest tests/test_aggregators.py
 4. **Push** to the branch (`git push origin feature/amazing-feature`)
 5. **Open** a Pull Request
 
-### 📚 **Contributing Documentation**
+### Contributing Documentation
 - Documentation is in the `docs/` directory
 - Use clear, concise language
 - Include code examples where appropriate
@@ -137,7 +137,7 @@ def test_aggregator_basic_functionality():
     np.testing.assert_array_almost_equal(result, expected)
 ```
 
-## 🔒 **Security Considerations**
+## Security Considerations
 
 When contributing to cryptographic components:
 - **Never** hardcode keys or sensitive parameters
@@ -153,7 +153,7 @@ When contributing to cryptographic components:
 - **Add** benchmarking for new features
 - **Document** time and space complexity
 
-## 🌍 **Community**
+## Community
 
 - Be respectful and inclusive
 - Help others learn and contribute
@@ -168,7 +168,7 @@ Look for issues labeled `good-first-issue`:
 - Adding tests
 - Code cleanup and refactoring
 
-## ❓ **Questions?**
+## Questions?
 
 - **Documentation**: Check the [docs](docs/) directory
 - **Examples**: Browse [examples](examples/) for usage patterns

@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.0] - 2025-10-28
 
-### 🎉 **Initial Release**
+### Initial Release
 
 #### Added
 - **Core Federated Learning Framework**
@@ -74,7 +74,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Cryptography**: Single-key and threshold modes
 - **Performance**: Optimized for real-world deployment
 
-### 🧹 **Project Cleanup**
+### Project Cleanup
 - Removed legacy DP-SGD integration attempts
 - Cleaned up dependencies and package structure
 - Added professional packaging and distribution setup
