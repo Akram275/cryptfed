@@ -180,6 +180,7 @@ def run_comparison_experiment():
         ("ckks", "sign_flipping", 1),
         ("bfv", "random_noise", 1),
         ("bfv", "sign_flipping", 1),
+        ("bgv", "label_shuffling", 1),
     ]
     
     for scheme, attack_type, num_byzantine in test_configurations:

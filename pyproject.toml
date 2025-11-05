@@ -4,15 +4,15 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cryptfed"
-version = "1.0.0"
-description = "CrypTFed: A Federated Learning Library with Homomorphic Encryption for TensorFlow"
+version = "0.1.0"
+description = "CrypTFed: Federated Learning with Homomorphic Encryption - Research Implementation"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
-    {name = "CrypTFed Team", email = "contact@cryptfed.org"}
+    {name = "Akram275"}
 ]
 maintainers = [
-    {name = "CrypTFed Team", email = "contact@cryptfed.org"}
+    {name = "Akram275"}
 ]
 keywords = [
     "federated-learning",
@@ -23,9 +23,8 @@ keywords = [
     "byzantine-robustness"
 ]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
-    "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
@@ -35,7 +34,6 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Security :: Cryptography",
-    "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 requires-python = ">=3.8"
 dependencies = [
@@ -69,11 +67,9 @@ all = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/cryptfed/cryptfed"
-Documentation = "https://cryptfed.readthedocs.io/"
-Repository = "https://github.com/cryptfed/cryptfed.git"
-"Bug Reports" = "https://github.com/cryptfed/cryptfed/issues"
-Changelog = "https://github.com/cryptfed/cryptfed/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/Akram275/cryptfed"
+Repository = "https://github.com/Akram275/cryptfed.git"
+"Bug Reports" = "https://github.com/Akram275/cryptfed/issues"
 
 [tool.setuptools]
 packages = ["cryptfed"]
