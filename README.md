@@ -4,6 +4,7 @@
 [![TensorFlow 2.8+](https://img.shields.io/badge/TensorFlow-2.8+-orange.svg)](https://www.tensorflow.org/)
 
 **CrypTFed** is a comprehensive federated learning library that combines **privacy-preserving cryptography** with **Byzantine-robust aggregation algorithms**. It enables secure, decentralized machine learning with homomorphic encryption (FHE) while defending against malicious participants.
+This project was supported by the French ANR project ANR-22-CE39-0002 EQUIHID. 
 
 ## Key Features
 
