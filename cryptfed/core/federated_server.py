@@ -126,10 +126,7 @@ class FederatedServer:
         initial_weights_list = self._model_template.get_weights()
         if not self.use_fhe:
             self.encrypted_global_model = initial_weights_list
-            # State: IDLE -> MODEL_INITIALIZED (plaintext)
-            if self.state_machine:
-                self.state_machine.transition_to(ServerState.MODEL_INITIALIZED)
-                self.state_machine.transition_to(ServerState.IDLE)
+            # In plaintext mode, no state transitions needed - model init is implicit
             return
 
         logging.getLogger(__name__).info("Server is encrypting the initial global model...")

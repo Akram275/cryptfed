@@ -47,7 +47,7 @@ class ServerState(Enum):
     IDLE = auto()                    # Ready to process requests
     BROADCASTING_MODEL = auto()      # Sending model to clients
     RECEIVING_UPDATES = auto()       # Collecting client updates
-    AGGREGATING_UPDATES = auto()     # Performing secure aggregation
+    AGGREGATING_UPDATES = auto()     # Performing (secure) aggregation
     MODEL_UPDATED = auto()           # New global model ready
     BENCHMARKING = auto()            # Recording metrics
     ERROR = auto()                   # Error state
