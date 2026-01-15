@@ -8,6 +8,14 @@ from ..fhe import fhe_manager_registry
 from .benchmark_manager import BenchmarkManager
 from .federated_client import FederatedClient
 
+try:
+    from .protocol_state import ServerStateMachine, ServerState, ProtocolCoordinator
+    STATE_MACHINE_AVAILABLE = True
+except ImportError:
+    STATE_MACHINE_AVAILABLE = False
+    ServerStateMachine = None
+    ServerState = None
+
 class FederatedServer:
     """
     A stateful cryptographic worker. It holds an encrypted model and performs
@@ -22,11 +30,18 @@ class FederatedServer:
                  enable_benchmarking: bool = True,
                  benchmark_manager: 'BenchmarkManager' = None,
                  x_test: np.ndarray = None,
-                 y_test: np.ndarray = None):
+                 y_test: np.ndarray = None,
+                 protocol_coordinator: 'ProtocolCoordinator' = None):
 
         self.use_fhe = use_fhe
         self.crypto_setting = crypto_setting if self.use_fhe else "single_key"
         self.fhe_scheme = fhe_scheme
+        
+        # Initialize state machine if coordinator provided
+        if protocol_coordinator and STATE_MACHINE_AVAILABLE:
+            self.state_machine = protocol_coordinator.register_server()
+        else:
+            self.state_machine = None
 
         if self.crypto_setting == "threshold" and "threshold" not in self.fhe_scheme:
             raise ValueError(f"Crypto setting is 'threshold' but FHE scheme '{self.fhe_scheme}' is not a threshold scheme.")
@@ -80,7 +95,16 @@ class FederatedServer:
         self.encrypted_global_model = None # The server's main state
 
     def init_session(self, clients: List[FederatedClient] = []):
+        # State: UNINITIALIZED -> INITIALIZING_CRYPTO or IDLE
+        if self.state_machine:
+            if self.use_fhe:
+                self.state_machine.transition_to(ServerState.INITIALIZING_CRYPTO)
+            else:
+                self.state_machine.transition_to(ServerState.IDLE)
+                return
+        
         if not self.use_fhe: return
+        
         if self.crypto_setting == "single_key":
             self.fhe_manager.generate_crypto_context_and_keys()
         elif self.crypto_setting == "threshold":
@@ -93,11 +117,19 @@ class FederatedServer:
 
             secret_key_shares = [client.generate_secret_key_share(cc) for client in self.key_holders]
             self.fhe_manager.collaborative_keygen(secret_key_shares)
+        
+        # State: INITIALIZING_CRYPTO -> CRYPTO_READY
+        if self.state_machine:
+            self.state_machine.transition_to(ServerState.CRYPTO_READY)
     
     def initialize_encrypted_global_model(self):
         initial_weights_list = self._model_template.get_weights()
         if not self.use_fhe:
             self.encrypted_global_model = initial_weights_list
+            # State: IDLE -> MODEL_INITIALIZED (plaintext)
+            if self.state_machine:
+                self.state_machine.transition_to(ServerState.MODEL_INITIALIZED)
+                self.state_machine.transition_to(ServerState.IDLE)
             return
 
         logging.getLogger(__name__).info("Server is encrypting the initial global model...")
@@ -110,6 +142,19 @@ class FederatedServer:
                             'Threshold' in self.fhe_manager.__class__.__name__ and 
                             'CKKS' in self.fhe_manager.__class__.__name__)
         chunk_size = slot_count // 2 if is_threshold_ckks else slot_count
+        
+        # Create fixed-size chunks like the clients do
+        weight_chunks = []
+        for i in range(0, len(initial_weights_flat), chunk_size):
+            chunk = initial_weights_flat[i:i+chunk_size]
+            weight_chunks.append(chunk)
+            
+        self.encrypted_global_model = self.fhe_manager.encrypt(weight_chunks, "server_init")
+        
+        # State: CRYPTO_READY -> MODEL_INITIALIZED -> IDLE
+        if self.state_machine:
+            self.state_machine.transition_to(ServerState.MODEL_INITIALIZED)
+            self.state_machine.transition_to(ServerState.IDLE)
         
         # Create fixed-size chunks like the clients do
         weight_chunks = []
@@ -139,13 +184,33 @@ class FederatedServer:
         weight_chunks = np.array_split(plaintext_vector, num_chunks)
         self.encrypted_global_model = self.fhe_manager.encrypt(weight_chunks, "server_re_encrypt")
 
-    def get_encrypted_global_model(self) -> Any:
-        """A simple getter for the server's encrypted state."""
+    def get_encrypted_global_model(self, for_broadcast: bool = False) -> Any:
+        """
+        A simple getter for the server's encrypted state.
+        
+        Args:
+            for_broadcast: If True, transition to BROADCASTING_MODEL state
+        """
+        # State: IDLE -> BROADCASTING_MODEL (only when actually broadcasting to clients)
+        if for_broadcast and self.state_machine and self.state_machine.current_state == ServerState.IDLE:
+            self.state_machine.transition_to(ServerState.BROADCASTING_MODEL)
         return self.encrypted_global_model
 
     def aggregate_and_update(self, client_payloads: List[tuple]):
         """Securely aggregates client models and updates the internal encrypted global model state."""
         if not client_payloads: return
+        
+        # State: BROADCASTING_MODEL/IDLE -> RECEIVING_UPDATES -> AGGREGATING_UPDATES
+        if self.state_machine:
+            current = self.state_machine.current_state
+            if current == ServerState.BROADCASTING_MODEL:
+                self.state_machine.transition_to(ServerState.RECEIVING_UPDATES)
+            elif current == ServerState.IDLE:
+                self.state_machine.transition_to(ServerState.RECEIVING_UPDATES)
+            # Now transition to aggregating
+            if self.state_machine.current_state == ServerState.RECEIVING_UPDATES:
+                self.state_machine.transition_to(ServerState.AGGREGATING_UPDATES)
+        
         updates, weights = zip(*client_payloads)
 
         new_encrypted_model = None
@@ -177,6 +242,11 @@ class FederatedServer:
             new_encrypted_model = aggregated_chunks
 
         self.encrypted_global_model = new_encrypted_model
+        
+        # State: AGGREGATING_UPDATES -> MODEL_UPDATED -> IDLE
+        if self.state_machine:
+            self.state_machine.transition_to(ServerState.MODEL_UPDATED)
+            self.state_machine.transition_to(ServerState.IDLE)
         
         # Track memory usage if benchmarking is enabled
         if self.benchmark_manager:

@@ -29,6 +29,41 @@ This project was supported by the French ANR project ANR-22-CE39-0002 EQUIHID.
 └─────────────────┴──────────────────┴─────────────────┘
 ```
 
+## Protocol State Machine
+
+CrypTFed implements a **formal protocol state machine** that ensures correct execution of federated learning protocols. The state machine is **always enabled** and provides:
+
+- **Formal Verification**: All entities (orchestrator, server, clients) follow validated state transitions
+- **Protocol Correctness**: Operations are executed in the correct sequence, preventing protocol violations
+- **Audit Trails**: Complete history of all state transitions with timestamps and metadata
+- **Runtime Validation**: Invalid transitions are caught immediately before they can cause issues
+
+### State Flow
+
+**Orchestrator (14 states)**: `UNINITIALIZED` → `INITIALIZING` → `SESSION_READY` → [per round: `ROUND_STARTING` → `DISTRIBUTING_MODEL` → `WAITING_FOR_CLIENTS` → `COLLECTING_UPDATES` → `AGGREGATING` → `DECRYPTING_MODEL` → `EVALUATING` → `ROUND_COMPLETE`] → `TRAINING_COMPLETE` → `TERMINATED`
+
+**Server (10 states)**: `IDLE` ↔ `BROADCASTING_MODEL` → `RECEIVING_UPDATES` → `AGGREGATING_UPDATES` → `MODEL_UPDATED` → `IDLE`
+
+**Client (13 states)**: `IDLE` → `RECEIVING_MODEL` → `TRAINING` → `ENCRYPTING_UPDATE` → `SENDING_UPDATE` → `WAITING` → `IDLE`
+
+### Usage
+
+The state machine runs automatically - no configuration needed:
+
+```python
+# State machine is always active
+orchestrator = CrypTFed(model_fn, clients, test_data)
+final_model = orchestrator.run()
+
+# Access audit trail
+audit = orchestrator.protocol_coordinator.generate_audit_report()
+import json
+with open('audit.json', 'w') as f:
+    json.dump(audit, f, indent=2)
+```
+
+For a complete demonstration, see [`protocol_state_machine_demo.py`](examples/protocol_state_machine_demo.py).
+
 ## Installation
 
 ### Prerequisites
@@ -228,10 +263,3 @@ CrypTFed provides comprehensive benchmarking across multiple dimensions:
 - **Model Quality**: Accuracy, loss, convergence rates
 - **System Resources**: Memory usage, computation time
 
-## Documentation
-
-- **[Installation Guide](docs/installation.md)** - Detailed setup instructions
-- **[API Reference](docs/api/)** - Complete API documentation  
-- **[Examples Guide](examples/README.md)** - Comprehensive examples
-- **[Performance Benchmarks](docs/benchmarks.md)** - Performance analysis
-- **[Security Model](docs/security.md)** - Threat model and guarantees

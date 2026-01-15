@@ -8,6 +8,14 @@ import tensorflow as tf
 import random
 import os
 
+try:
+    from .protocol_state import ClientStateMachine, ClientState
+    STATE_MACHINE_AVAILABLE = True
+except ImportError:
+    STATE_MACHINE_AVAILABLE = False
+    ClientStateMachine = None
+    ClientState = None
+
 class FederatedClient:
     """
     Represents a client in the FL system, with optional Byzantine behavior and
@@ -39,6 +47,9 @@ class FederatedClient:
         self.byzantine = byzantine
         self.attack_type = attack_type
         self.attack_args = attack_args
+        
+        # State machine (will be set by orchestrator if enabled)
+        self.state_machine = None
 
         # State for Threshold Cryptography
         self.secret_key_share = None
@@ -72,9 +83,18 @@ class FederatedClient:
         self.connect_to_server({}, fhe_manager)
 
     def connect_to_server(self, public_context: dict, fhe_manager: Any):
+        # State: UNINITIALIZED -> CONNECTING
+        if self.state_machine:
+            self.state_machine.transition_to(ClientState.CONNECTING)
+        
         self.encryption_service = fhe_manager
         secure_mode = "secure (FHE)" if fhe_manager else "non-secure (plaintext)"
         logging.getLogger(__name__).info(f"Client {self.client_id} connected in {secure_mode} mode.")
+        
+        # State: CONNECTING -> CONNECTED -> IDLE
+        if self.state_machine:
+            self.state_machine.transition_to(ClientState.CONNECTED)
+            self.state_machine.transition_to(ClientState.IDLE)
 
     # --- Methods for Threshold FHE Protocol ---
     def generate_secret_key_share(self, cc: Any) -> Any:
@@ -132,12 +152,20 @@ class FederatedClient:
         return y_shuffled
 
     def execute_training_round(self, global_model_weights: List[np.ndarray]) -> Tuple[Any, float]:
+        # State: IDLE -> RECEIVING_MODEL
+        if self.state_machine:
+            self.state_machine.transition_to(ClientState.RECEIVING_MODEL)
+        
         # Set deterministic training only if a seed is provided
         if self.deterministic_seed is not None:
             self.set_deterministic_training(self.deterministic_seed)
         
         #print(f"--- Client {self.client_id} starting training round ---")
         self.model.set_weights(global_model_weights)
+        
+        # State: RECEIVING_MODEL -> TRAINING (skip DECRYPTING for plaintext)
+        if self.state_machine:
+            self.state_machine.transition_to(ClientState.TRAINING)
 
         original_lr = self.model.optimizer.learning_rate.numpy()
         self.model.optimizer.learning_rate.assign(self.local_lr)
@@ -178,6 +206,10 @@ class FederatedClient:
             local_weights = self._random_noise_attack(local_weights)
 
         if self.encryption_service:
+            # State: TRAINING -> ENCRYPTING_UPDATE
+            if self.state_machine:
+                self.state_machine.transition_to(ClientState.ENCRYPTING_UPDATE)
+            
             slot_count = self.encryption_service.slot_count
             if slot_count == 0: raise ValueError("FHE Manager slot_count is not set.")
 
@@ -244,8 +276,19 @@ class FederatedClient:
 
                 # Log with the correct metric name from BenchmarkProfile.FHE_BANDWIDTH
                 bm.log_event(self.client_id, 'Network Transfer Size', total_size, unit='bytes')
+            
+            # State: ENCRYPTING_UPDATE -> SENDING_UPDATE -> WAITING
+            if self.state_machine:
+                self.state_machine.transition_to(ClientState.SENDING_UPDATE)
+                self.state_machine.transition_to(ClientState.WAITING)
 
             return (encrypted_chunks, self.weight)
         else:
             flat_local_weights = self._flatten_weights(local_weights)
+            
+            # State: TRAINING -> SENDING_UPDATE -> WAITING (plaintext)
+            if self.state_machine:
+                self.state_machine.transition_to(ClientState.SENDING_UPDATE)
+                self.state_machine.transition_to(ClientState.WAITING)
+            
             return (flat_local_weights, self.weight)

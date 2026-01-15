@@ -7,6 +7,13 @@ import io
 import logging
 import random
 from .core.federated_server import FederatedServer
+from .core.protocol_state import (
+    ProtocolCoordinator, 
+    OrchestratorState, 
+    ClientState,
+    StateTransitionError, 
+    ProtocolViolationError
+)
 
 def configure_logging(level=logging.INFO):
     """Configure logging for the Synergia package.
@@ -30,6 +37,9 @@ class CrypTFed:
     The main orchestrator for a CrypTFed federated learning experiment.
     This class handles the setup, execution, and all decryption ceremonies,
     ensuring the server remains zero-knowledge.
+    
+    The protocol state machine is always enabled to ensure formal protocol
+    execution, provide audit trails, and validate state transitions.
     """
     def __init__(self,
                  model_fn: Callable,
@@ -49,12 +59,18 @@ class CrypTFed:
         self.clients = clients
         self.x_test, self.y_test = test_data
         self.client_sampling_proportion = client_sampling_proportion
+        
+        # Initialize protocol state machine (always enabled for proper protocol execution)
+        self.protocol_coordinator = ProtocolCoordinator()
+        self.state_machine = self.protocol_coordinator.register_orchestrator()
+        logging.getLogger(__name__).info("Protocol state machine initialized")
 
         self.server = FederatedServer(
             model_fn=model_fn, crypto_setting=crypto_setting,
             threshold_parties=threshold_parties, aggregator_name=aggregator_name,
             aggregator_args=aggregator_args, use_fhe=use_fhe, fhe_scheme=fhe_scheme,
-            enable_benchmarking=enable_benchmarking, benchmark_manager=benchmark_manager
+            enable_benchmarking=enable_benchmarking, benchmark_manager=benchmark_manager,
+            protocol_coordinator=self.protocol_coordinator
         )
 
     def _reshape_vector_to_model(self, flat_vector: np.ndarray) -> List[np.ndarray]:
@@ -152,12 +168,22 @@ class CrypTFed:
     def run(self):
         """Executes the entire federated learning simulation with a single static tqdm bar."""
         logger = logging.getLogger(__name__)
+        
+        # State: UNINITIALIZED -> INITIALIZING
+        if self.state_machine:
+            self.state_machine.transition_to(OrchestratorState.INITIALIZING, 
+                                            {"num_clients": len(self.clients), "num_rounds": self.num_rounds})
+        
         logger.info("Initializing federated session...")
         self.server.init_session(self.clients)
         public_context = self.server.get_public_context()
 
         logger.info("Connecting clients to server...")
         for client in self.clients:
+            # Register client in protocol coordinator BEFORE connecting
+            if self.protocol_coordinator:
+                client.state_machine = self.protocol_coordinator.register_client(client.client_id)
+            
             fhe_manager = self.server.fhe_manager if self.server.use_fhe else None
             client.connect_to_server(public_context, fhe_manager)
             # Ensure clients can log benchmarks even in plaintext mode by exposing the server's manager
@@ -166,6 +192,11 @@ class CrypTFed:
 
         logger.info("Initializing global model...")
         self.server.initialize_encrypted_global_model()
+        
+        # State: INITIALIZING -> SESSION_READY
+        if self.state_machine:
+            self.state_machine.transition_to(OrchestratorState.SESSION_READY, 
+                                            {"crypto_setting": self.server.crypto_setting})
 
         n_clients = len(self.clients)
         avg_clients_per_round = int(n_clients * self.client_sampling_proportion)
@@ -174,6 +205,12 @@ class CrypTFed:
         with tqdm(total=total_steps, desc="Federated Training", ncols=100) as pbar:
             for r in range(self.num_rounds):
                 round_num = r + 1
+                
+                # State: SESSION_READY/ROUND_COMPLETE -> ROUND_STARTING
+                if self.state_machine:
+                    self.state_machine.transition_to(OrchestratorState.ROUND_STARTING, 
+                                                    {"round": round_num})
+                
                 if self.server.benchmark_manager:
                     self.server.benchmark_manager.set_round(round_num)
 
@@ -183,8 +220,13 @@ class CrypTFed:
                 logger.info(f"Round {round_num}: Sampled {len(participating_clients)} of {n_clients} clients.")
                 # ---------------------
 
+                # State: ROUND_STARTING -> DISTRIBUTING_MODEL
+                if self.state_machine:
+                    self.state_machine.transition_to(OrchestratorState.DISTRIBUTING_MODEL, 
+                                                    {"num_participating": len(participating_clients)})
+                
                 pbar.set_postfix_str(f" Redistribute model")
-                encrypted_model = self.server.get_encrypted_global_model()
+                encrypted_model = self.server.get_encrypted_global_model(for_broadcast=True)
 
                 if self.server.use_fhe:
                     clients_for_decryption = self.clients
@@ -195,6 +237,11 @@ class CrypTFed:
                     plaintext_vector = np.concatenate([w.flatten() for w in encrypted_model])
                 plaintext_weights = self._reshape_vector_to_model(plaintext_vector)
 
+                # State: DISTRIBUTING_MODEL -> WAITING_FOR_CLIENTS
+                if self.state_machine:
+                    self.state_machine.transition_to(OrchestratorState.WAITING_FOR_CLIENTS, 
+                                                    {"sampled_clients": [c.client_id for c in participating_clients]})
+                
                 client_payloads = []
 
                 # Capture and silence prints inside client training
@@ -205,8 +252,18 @@ class CrypTFed:
                     pbar.update(1)
                     pbar.set_postfix_str(f"Round {round_num}/{self.num_rounds} - Client {client_idx}/{num_participating_clients}")
 
+                # State: WAITING_FOR_CLIENTS -> COLLECTING_UPDATES
+                if self.state_machine:
+                    self.state_machine.transition_to(OrchestratorState.COLLECTING_UPDATES, 
+                                                    {"num_updates": len(client_payloads)})
+                
                 # Aggregation phase
                 start = time.time()
+
+                # State: COLLECTING_UPDATES -> AGGREGATING
+                if self.state_machine:
+                    self.state_machine.transition_to(OrchestratorState.AGGREGATING, 
+                                                    {"aggregator": self.server.aggregator.__class__.__name__})
 
                 if self.server.use_fhe:
                     if self.server.aggregator.requires_plaintext_updates:
@@ -236,8 +293,19 @@ class CrypTFed:
                 pbar.update(1)
                 pbar.set_postfix_str(f"Round {round_num}/{self.num_rounds} - Aggregation {end - start:.4f}s")
                 
+                # State: AGGREGATING -> DECRYPTING_MODEL (if FHE) or EVALUATING (if plaintext)
+                if self.state_machine:
+                    if self.server.use_fhe:
+                        self.state_machine.transition_to(OrchestratorState.DECRYPTING_MODEL)
+                    else:
+                        self.state_machine.transition_to(OrchestratorState.EVALUATING)
+                
                 # Evaluate model after each round if test data is available
                 if self.x_test is not None and self.y_test is not None:
+                    # State: DECRYPTING_MODEL -> EVALUATING (if was in decrypt state)
+                    if self.state_machine and self.state_machine.current_state == OrchestratorState.DECRYPTING_MODEL:
+                        self.state_machine.transition_to(OrchestratorState.EVALUATING)
+                    
                     # Get the updated model weights AFTER aggregation
                     eval_encrypted_model = self.server.get_encrypted_global_model()
                     if self.server.use_fhe:
@@ -258,7 +326,23 @@ class CrypTFed:
                         self.server.benchmark_manager.log_event('Evaluation', 'Model Loss', loss, unit='loss')
                         
                     logger.info(f"Round {round_num} - Test Accuracy: {accuracy:.4f}, Loss: {loss:.4f}")
+                
+                # State: EVALUATING -> ROUND_COMPLETE
+                if self.state_machine:
+                    self.state_machine.transition_to(OrchestratorState.ROUND_COMPLETE, 
+                                                    {"round": round_num, "total_rounds": self.num_rounds})
+                
+                # Transition all participating clients back to IDLE for next round
+                for client in participating_clients:
+                    if hasattr(client, 'state_machine') and client.state_machine:
+                        if client.state_machine.current_state == ClientState.WAITING:
+                            client.state_machine.transition_to(ClientState.IDLE)
 
+        # State: ROUND_COMPLETE -> TRAINING_COMPLETE
+        if self.state_machine:
+            self.state_machine.transition_to(OrchestratorState.TRAINING_COMPLETE, 
+                                            {"total_rounds": self.num_rounds})
+        
         logger.info("\nFederated training finished.")
         final_model = self.model_fn()
         final_model.set_weights(plaintext_weights)
