@@ -252,6 +252,10 @@ class CrypTFed:
                     pbar.update(1)
                     pbar.set_postfix_str(f"Round {round_num}/{self.num_rounds} - Client {client_idx}/{num_participating_clients}")
 
+                # Detect payload mode: check if first payload is a ClientPayload object
+                from .core.payload import ClientPayload
+                is_payload_mode = isinstance(client_payloads[0], ClientPayload)
+
                 # State: WAITING_FOR_CLIENTS -> COLLECTING_UPDATES
                 if self.state_machine:
                     self.state_machine.transition_to(OrchestratorState.COLLECTING_UPDATES, 
@@ -271,23 +275,53 @@ class CrypTFed:
                         pbar.set_postfix_str(f"Round {round_num}/{self.num_rounds} - Decrypting for Aggregation")
                         
                         plaintext_updates = []
+                        weights = []
+                        
                         for payload in client_payloads:
-                            encrypted_update, _ = payload
+                            if is_payload_mode:
+                                encrypted_update = payload.get_item("model_update").data
+                                weight = payload.weight
+                            else:
+                                encrypted_update, weight = payload
+                                
                             clients_for_decryption = random.sample(self.server.key_holders, self.server.threshold_parties)
                             decrypted_vector = self._decrypt_and_reconstruct(encrypted_update, clients_for_decryption)
                             plaintext_updates.append(decrypted_vector)
+                            weights.append(weight)
                         
                         pbar.set_postfix_str(f"Round {round_num}/{self.num_rounds} - Plaintext Aggregation")
-                        weights = [p[1] for p in client_payloads]
                         new_model_vector = self.server.aggregator.aggregate(plaintext_updates, weights)
 
                         self.server.encrypt_and_set_model(new_model_vector)
                     else:
-                        # SCENARIO B: FHE is ON, and aggregation is homomorphic (e.g., FedAvg)
-                        self.server.aggregate_and_update(client_payloads)
+                        # SCENARIO B: FHE is ON, and aggregation is homomorphic
+                        # Check if aggregator can handle payloads directly
+                        if is_payload_mode and hasattr(self.server.aggregator, 'aggregate_payloads'):
+                            # Use payload-aware aggregation
+                            self.server.aggregate_payloads_and_update(client_payloads)
+                        else:
+                            # Legacy aggregation (convert payloads to tuples if needed)
+                            if is_payload_mode:
+                                legacy_payloads = []
+                                for p in client_payloads:
+                                    model_data = p.get_item("model_update").data
+                                    legacy_payloads.append((model_data, p.weight))
+                                self.server.aggregate_and_update(legacy_payloads)
+                            else:
+                                self.server.aggregate_and_update(client_payloads)
                 else:
                     # SCENARIO C: FHE is OFF, aggregation is on plaintext updates
-                    self.server.aggregate_and_update(client_payloads)
+                    if is_payload_mode and hasattr(self.server.aggregator, 'aggregate_payloads'):
+                        self.server.aggregate_payloads_and_update(client_payloads)
+                    elif is_payload_mode:
+                        # Convert to legacy format
+                        legacy_payloads = []
+                        for p in client_payloads:
+                            model_data = p.get_item("model_update").data
+                            legacy_payloads.append((model_data, p.weight))
+                        self.server.aggregate_and_update(legacy_payloads)
+                    else:
+                        self.server.aggregate_and_update(client_payloads)
 
                 end = time.time()
                 pbar.update(1)

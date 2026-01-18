@@ -150,7 +150,7 @@ class StateMachine:
         )
         self._transition_history.append(transition)
         
-        self.logger.info(
+        self.logger.debug(
             f"State transition: {old_state.name} -> {new_state.name} "
             f"{f'({metadata})' if metadata else ''}"
         )

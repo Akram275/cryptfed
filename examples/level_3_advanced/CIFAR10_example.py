@@ -109,8 +109,8 @@ LOCAL_EPOCHS_PER_ROUND = 1
 
 # Use threshold FHE
 USE_FHE = True
-CRYPTO_SETTING = "single_key" 
-FHE_SCHEME = "bfv"  
+CRYPTO_SETTING = "threshold" 
+FHE_SCHEME = "threshold_bgv"  
 
 # Use simple sequential data distribution like new_test.py (not IID)
 client_datasets = []

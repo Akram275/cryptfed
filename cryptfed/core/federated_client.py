@@ -26,7 +26,10 @@ class FederatedClient:
                  verbose: int = 0,
                  chunking_strategy: str = 'flatten',
                  byzantine: bool = False, attack_type: str = None, attack_args: Dict = {},
-                 deterministic_seed: int = None):
+                 deterministic_seed: int = None,
+                 use_payload_mode: bool = False,
+                 validation_data: Tuple = None,
+                 custom_metrics_fn: Callable = None):
         self.client_id = client_id
         self.deterministic_seed = deterministic_seed
 
@@ -47,6 +50,11 @@ class FederatedClient:
         self.byzantine = byzantine
         self.attack_type = attack_type
         self.attack_args = attack_args
+        
+        # Modular payload support (optional)
+        self.use_payload_mode = use_payload_mode
+        self.validation_data = validation_data
+        self.custom_metrics_fn = custom_metrics_fn
         
         # State machine (will be set by orchestrator if enabled)
         self.state_machine = None
@@ -184,7 +192,7 @@ class FederatedClient:
                        epochs=self.local_epochs,
                        batch_size=batch_size,
                        steps_per_epoch=steps_per_epoch,
-                       shuffle=False,
+                       shuffle=True,
                        verbose=self.verbose)
         local_train_time = time.time() - start_time
 
@@ -282,7 +290,11 @@ class FederatedClient:
                 self.state_machine.transition_to(ClientState.SENDING_UPDATE)
                 self.state_machine.transition_to(ClientState.WAITING)
 
-            return (encrypted_chunks, self.weight)
+            # Return payload or legacy tuple based on mode
+            if self.use_payload_mode:
+                return self._create_payload(encrypted_chunks, local_weights)
+            else:
+                return (encrypted_chunks, self.weight)
         else:
             flat_local_weights = self._flatten_weights(local_weights)
             
@@ -291,4 +303,36 @@ class FederatedClient:
                 self.state_machine.transition_to(ClientState.SENDING_UPDATE)
                 self.state_machine.transition_to(ClientState.WAITING)
             
-            return (flat_local_weights, self.weight)
+            # Return payload or legacy tuple based on mode
+            if self.use_payload_mode:
+                return self._create_payload(flat_local_weights, local_weights)
+            else:
+                return (flat_local_weights, self.weight)
+    
+    def _create_payload(self, model_data: Any, original_weights: List[np.ndarray]):
+        """Create a ClientPayload with model update and optional metrics"""
+        from .payload import PayloadBuilder
+        
+        builder = PayloadBuilder(client_id=self.client_id, weight=self.weight)
+        
+        # Add model update (encrypted or plaintext)
+        is_encrypted = self.encryption_service is not None
+        builder.add_model_update(model_data, encrypted=is_encrypted)
+        
+        # Add local training metrics if validation data available
+        if self.validation_data is not None:
+            # Traditional metrics
+            if len(self.validation_data) >= 2:
+                x_val, y_val = self.validation_data[0], self.validation_data[1]
+                loss, accuracy = self.model.evaluate(x_val, y_val, verbose=0)
+                builder.add_statistic("local_accuracy", accuracy, encrypted=False)
+                builder.add_statistic("local_loss", loss, encrypted=False)
+            
+            # Custom metrics (e.g., SPD, Fairness)
+            if self.custom_metrics_fn is not None:
+                custom_stats = self.custom_metrics_fn(self.model, self.validation_data)
+                if isinstance(custom_stats, dict):
+                    for name, value in custom_stats.items():
+                        builder.add_statistic(name, value, encrypted=False)
+        
+        return builder.build()

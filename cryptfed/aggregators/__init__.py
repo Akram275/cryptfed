@@ -8,6 +8,15 @@ from .fed_prox import FedProx
 from .flame_byzantine import FlameByzantine
 from .fools_gold import FoolsGold
 
+# Import modular aggregation framework
+from .modular_aggregator import (
+    ModularAggregator,
+    GraphBasedAggregator,
+    CustomAggregatorBuilder,
+    create_fedavg_aggregator,
+    create_fairness_aggregator
+)
+
 # Try to import FHE aggregators (only available if OpenFHE is installed)
 FHE_AVAILABLE = True
 try:

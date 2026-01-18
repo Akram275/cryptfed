@@ -257,6 +257,50 @@ class FederatedServer:
                 # We'll evaluate metrics after decryption in the high-level orchestrator
                 # This is just placeholder to show where metrics would be collected
                 pass
+    
+    def aggregate_payloads_and_update(self, client_payloads: List):
+        """
+        Aggregates using modular payload-aware aggregator.
+        This method is called when clients return ClientPayload objects
+        and the aggregator supports aggregate_payloads method.
+        """
+        if not client_payloads: return
+        
+        # State management
+        if self.state_machine:
+            current = self.state_machine.current_state
+            if current == ServerState.BROADCASTING_MODEL:
+                self.state_machine.transition_to(ServerState.RECEIVING_UPDATES)
+            elif current == ServerState.IDLE:
+                self.state_machine.transition_to(ServerState.RECEIVING_UPDATES)
+            if self.state_machine.current_state == ServerState.RECEIVING_UPDATES:
+                self.state_machine.transition_to(ServerState.AGGREGATING_UPDATES)
+        
+        # Use payload-aware aggregation
+        aggregated_result = self.aggregator.aggregate_payloads(
+            client_payloads,
+            cc=self.fhe_manager.cc if self.fhe_manager else None
+        )
+        
+        # Handle result - could be chunks or flat vector
+        if isinstance(aggregated_result, list) and len(aggregated_result) > 0:
+            # Encrypted chunks from FHE aggregation
+            self.encrypted_global_model = aggregated_result
+        else:
+            # Plaintext aggregation result
+            temp_model = self._model_template
+            current_pos = 0
+            new_weights = []
+            for layer in temp_model.get_weights():
+                shape, size = layer.shape, layer.size
+                new_weights.append(aggregated_result[current_pos : current_pos + size].reshape(shape))
+                current_pos += size
+            self.encrypted_global_model = new_weights
+        
+        # State: AGGREGATING_UPDATES -> MODEL_UPDATED -> IDLE
+        if self.state_machine:
+            self.state_machine.transition_to(ServerState.MODEL_UPDATED)
+            self.state_machine.transition_to(ServerState.IDLE)
 
     def get_public_context(self) -> dict:
         if not self.use_fhe: return None
