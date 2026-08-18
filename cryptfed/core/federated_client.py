@@ -27,7 +27,7 @@ class FederatedClient:
                  chunking_strategy: str = 'flatten',
                  byzantine: bool = False, attack_type: str = None, attack_args: Dict = {},
                  deterministic_seed: int = None,
-                 use_payload_mode: bool = False,
+                 use_payload_mode: bool = False, #Payload mode allows for more modularity
                  validation_data: Tuple = None,
                  custom_metrics_fn: Callable = None):
         self.client_id = client_id
@@ -50,12 +50,14 @@ class FederatedClient:
         self.byzantine = byzantine
         self.attack_type = attack_type
         self.attack_args = attack_args
-        
+
         # Modular payload support (optional)
         self.use_payload_mode = use_payload_mode
         self.validation_data = validation_data
         self.custom_metrics_fn = custom_metrics_fn
-        
+        self._payload_config = {}
+        self._prev_global_weights = None
+
         # State machine (will be set by orchestrator if enabled)
         self.state_machine = None
 
@@ -65,24 +67,28 @@ class FederatedClient:
         if self.byzantine:
             logging.getLogger(__name__).warning(f"ATTENTION: Client {self.client_id} is a BYZANTINE client, attack: {self.attack_type}")
 
+    def add_payload_item_config(self, name, type, encrypt=False):
+        """Configure how a specific payload item should be handled"""
+        self._payload_config[name] = {'type': type, 'encrypt': encrypt}
+
     def set_deterministic_training(self, seed=42):
         """Ensure deterministic training across all random sources."""
         # Set Python random seed
         random.seed(seed)
-        
+
         # Set NumPy random seed
         np.random.seed(seed)
-        
+
         # Set TensorFlow random seed
         tf.random.set_seed(seed)
-        
+
         # Enable deterministic operations in TensorFlow (if not already set)
         try:
             tf.config.experimental.enable_op_determinism()
         except (AttributeError, RuntimeError):
             # For older TensorFlow versions or if already enabled
             os.environ['TF_DETERMINISTIC_OPS'] = '1'
-        
+
         # Set environment variables for determinism
         os.environ['PYTHONHASHSEED'] = str(seed)
 
@@ -94,11 +100,11 @@ class FederatedClient:
         # State: UNINITIALIZED -> CONNECTING
         if self.state_machine:
             self.state_machine.transition_to(ClientState.CONNECTING)
-        
+
         self.encryption_service = fhe_manager
         secure_mode = "secure (FHE)" if fhe_manager else "non-secure (plaintext)"
         logging.getLogger(__name__).info(f"Client {self.client_id} connected in {secure_mode} mode.")
-        
+
         # State: CONNECTING -> CONNECTED -> IDLE
         if self.state_machine:
             self.state_machine.transition_to(ClientState.CONNECTED)
@@ -137,7 +143,7 @@ class FederatedClient:
     def _flatten_weights(self, weights: List[np.ndarray]) -> np.ndarray:
         return np.concatenate([w.flatten() for w in weights])
 
-    # --- Byzantine Attack Methods ---
+    # --- Some Byzantine Attack Methods ---
     def _sign_flipping_attack(self, weights: List[np.ndarray]) -> List[np.ndarray]:
         logging.getLogger(__name__).warning(f"Client {self.client_id} is performing a SIGN-FLIPPING attack.")
         return [-w for w in weights]
@@ -163,14 +169,14 @@ class FederatedClient:
         # State: IDLE -> RECEIVING_MODEL
         if self.state_machine:
             self.state_machine.transition_to(ClientState.RECEIVING_MODEL)
-        
+
         # Set deterministic training only if a seed is provided
         if self.deterministic_seed is not None:
             self.set_deterministic_training(self.deterministic_seed)
-        
+
         #print(f"--- Client {self.client_id} starting training round ---")
         self.model.set_weights(global_model_weights)
-        
+
         # State: RECEIVING_MODEL -> TRAINING (skip DECRYPTING for plaintext)
         if self.state_machine:
             self.state_machine.transition_to(ClientState.TRAINING)
@@ -217,7 +223,7 @@ class FederatedClient:
             # State: TRAINING -> ENCRYPTING_UPDATE
             if self.state_machine:
                 self.state_machine.transition_to(ClientState.ENCRYPTING_UPDATE)
-            
+
             slot_count = self.encryption_service.slot_count
             if slot_count == 0: raise ValueError("FHE Manager slot_count is not set.")
 
@@ -232,9 +238,9 @@ class FederatedClient:
             weight_chunks = []
             if self.chunking_strategy == 'flatten':
                 flat_local_weights = self._flatten_weights(local_weights)
-                
+
                 # For CKKS (non-threshold), use the original np.array_split approach as it was working
-                # For BFV/BGV and threshold schemes (including threshold CKKS), use fixed-size chunks aligned with slot boundaries  
+                # For BFV/BGV and threshold schemes (including threshold CKKS), use fixed-size chunks aligned with slot boundaries
                 if hasattr(self.encryption_service, '__class__') and ('CKKS' in self.encryption_service.__class__.__name__) and ('Threshold' not in self.encryption_service.__class__.__name__):
                     # Regular CKKS only: Use original chunking (was working before) - use effective_slot_count for proper slot utilization
                     num_chunks = int(np.ceil(len(flat_local_weights) / effective_slot_count))
@@ -284,7 +290,7 @@ class FederatedClient:
 
                 # Log with the correct metric name from BenchmarkProfile.FHE_BANDWIDTH
                 bm.log_event(self.client_id, 'Network Transfer Size', total_size, unit='bytes')
-            
+
             # State: ENCRYPTING_UPDATE -> SENDING_UPDATE -> WAITING
             if self.state_machine:
                 self.state_machine.transition_to(ClientState.SENDING_UPDATE)
@@ -297,28 +303,35 @@ class FederatedClient:
                 return (encrypted_chunks, self.weight)
         else:
             flat_local_weights = self._flatten_weights(local_weights)
-            
+
             # State: TRAINING -> SENDING_UPDATE -> WAITING (plaintext)
             if self.state_machine:
                 self.state_machine.transition_to(ClientState.SENDING_UPDATE)
                 self.state_machine.transition_to(ClientState.WAITING)
-            
+
             # Return payload or legacy tuple based on mode
             if self.use_payload_mode:
                 return self._create_payload(flat_local_weights, local_weights)
             else:
                 return (flat_local_weights, self.weight)
-    
+
     def _create_payload(self, model_data: Any, original_weights: List[np.ndarray]):
         """Create a ClientPayload with model update and optional metrics"""
         from .payload import PayloadBuilder
-        
+
         builder = PayloadBuilder(client_id=self.client_id, weight=self.weight)
-        
+
         # Add model update (encrypted or plaintext)
         is_encrypted = self.encryption_service is not None
         builder.add_model_update(model_data, encrypted=is_encrypted)
-        
+
+        # Determine extra metrics to add (even if no validation data is provided)
+        extra_metrics = {}
+        if self.custom_metrics_fn is not None:
+            # Pass model, validation data, and previous weights as context
+            prev_weights = getattr(self, '_prev_global_weights', None)
+            extra_metrics = self.custom_metrics_fn(self.model, self.validation_data, previous_weights=prev_weights) or {}
+
         # Add local training metrics if validation data available
         if self.validation_data is not None:
             # Traditional metrics
@@ -327,12 +340,19 @@ class FederatedClient:
                 loss, accuracy = self.model.evaluate(x_val, y_val, verbose=0)
                 builder.add_statistic("local_accuracy", accuracy, encrypted=False)
                 builder.add_statistic("local_loss", loss, encrypted=False)
-            
-            # Custom metrics (e.g., SPD, Fairness)
-            if self.custom_metrics_fn is not None:
-                custom_stats = self.custom_metrics_fn(self.model, self.validation_data)
-                if isinstance(custom_stats, dict):
-                    for name, value in custom_stats.items():
-                        builder.add_statistic(name, value, encrypted=False)
-        
+
+        # Add metrics from custom hook
+        for name, value in extra_metrics.items():
+            # Check if this metric should be encrypted according to client config
+            should_encrypt = self._payload_config.get(name, {}).get('encrypt', False)
+
+            # If encryption is requested but we have no encryption service, fallback to plaintext
+            if should_encrypt and self.encryption_service:
+                # Encrypt the scalar value using the encryption service
+                # We wrap it in a list as the encrypt method typically expects a list of chunks
+                encrypted_val = self.encryption_service.encrypt([np.array([value])], self.client_id)
+                builder.add_custom(name, encrypted_val, encrypted=True)
+            else:
+                builder.add_statistic(name, value, encrypted=False)
+
         return builder.build()
