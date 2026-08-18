@@ -246,6 +246,8 @@ class CrypTFed:
 
                 # Capture and silence prints inside client training
                 for client_idx, client in enumerate(participating_clients, start=1):
+                    # Cache previous weights to help in metrics calculation (e.g. L2 norm)
+                    client._prev_global_weights = plaintext_weights
                     with contextlib.redirect_stdout(io.StringIO()):
                         payload = client.execute_training_round(plaintext_weights)
                     client_payloads.append(payload)
@@ -353,7 +355,18 @@ class CrypTFed:
                     
                     eval_model = self.model_fn()
                     eval_model.set_weights(eval_plaintext_weights)  # Use UPDATED weights
-                    loss, accuracy = eval_model.evaluate(self.x_test, self.y_test, verbose=0)
+                    eval_result = eval_model.evaluate(self.x_test, self.y_test, verbose=0)
+                    
+                    # Handle both single metric and multiple metrics
+                    if isinstance(eval_result, (list, tuple)):
+                        loss = eval_result[0]
+                        metric_value = eval_result[1] if len(eval_result) > 1 else 0.0
+                    else:
+                        loss = eval_result
+                        metric_value = 0.0
+                    
+                    # Use generic term since it could be accuracy, MAE, etc.
+                    accuracy = metric_value
                     
                     if self.server.benchmark_manager:
                         self.server.benchmark_manager.log_event('Evaluation', 'Model Accuracy', accuracy * 100, unit='%')
