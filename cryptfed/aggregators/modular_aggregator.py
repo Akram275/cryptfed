@@ -171,7 +171,10 @@ class GraphBasedAggregator(ModularAggregator):
             # Extract other items (statistics, fairness metrics, etc.)
             for name, item in payload.items.items():
                 if name != "model_update":
-                    var_name = f"{payload.client_id}_{name}"
+                    # Keyed positionally (matching update_{i}/weight_{i} above) rather than
+                    # by client_id, since payload order can be shuffled by client sampling
+                    # between rounds while graphs reference variables by position.
+                    var_name = f"{i}_{name}"
                     # Unwrap single-element lists for encrypted scalars
                     data = item.data
                     if isinstance(data, list) and len(data) == 1:
@@ -248,16 +251,26 @@ class GraphBasedAggregator(ModularAggregator):
     
     # FHE operation implementations (these delegate to the actual FHE library)
     def _fhe_add(self, a, b, cc):
-        """Add two encrypted values"""
+        """Add two encrypted values, or two lists of encrypted chunks element-wise"""
+        if isinstance(a, list) and isinstance(b, list):
+            # Plain Python `+` on two lists concatenates rather than summing chunk-wise,
+            # so chunked updates need an explicit element-wise recursion.
+            if len(a) != len(b):
+                raise ValueError(f"Cannot add lists of different lengths: {len(a)} vs {len(b)}")
+            return [self._fhe_add(a_i, b_i, cc) for a_i, b_i in zip(a, b)]
         try:
             # Try OpenFHE addition
             return a + b
         except:
             # Fallback to numpy for plaintext
             return np.add(a, b)
-    
+
     def _fhe_subtract(self, a, b, cc):
-        """Subtract two encrypted values"""
+        """Subtract two encrypted values, or two lists of encrypted chunks element-wise"""
+        if isinstance(a, list) and isinstance(b, list):
+            if len(a) != len(b):
+                raise ValueError(f"Cannot subtract lists of different lengths: {len(a)} vs {len(b)}")
+            return [self._fhe_subtract(a_i, b_i, cc) for a_i, b_i in zip(a, b)]
         try:
             return a - b
         except:
