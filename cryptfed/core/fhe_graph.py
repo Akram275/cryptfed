@@ -240,35 +240,40 @@ class FHEComputationGraph:
     
     def _topological_sort(self) -> List[FHEOperationNode]:
         """Sort nodes in topological order (dependencies first)"""
-        # Build dependency map
-        dependencies = {}
-        node_map = {}
-        for node in self.nodes:
-            deps = [inp for inp in node.inputs if isinstance(inp, str)]
-            dependencies[node.output_name] = deps
-            node_map[node.output_name] = node
+        # Node map for quick access
+        node_map = {node.output_name: node for node in self.nodes}
         
-        # Kahn's algorithm
-        in_degree = {name: 0 for name in dependencies}
-        for deps in dependencies.values():
-            for dep in deps:
-                if dep in in_degree:
-                    in_degree[dep] += 1
+        # Build dependency graph: name -> list of nodes that depend on it
+        dependents = {name: [] for name in node_map}
+        # In-degree: node_name -> number of inputs that are outputs of other nodes
+        in_degree = {name: 0 for name in node_map}
         
+        for name, node in node_map.items():
+            for inp in node.inputs:
+                if isinstance(inp, str) and inp in node_map:
+                    dependents[inp].append(name)
+                    in_degree[name] += 1
+        
+        # Queue nodes with 0 in-degree (no internal dependencies)
         queue = [name for name, degree in in_degree.items() if degree == 0]
-        sorted_names = []
+        sorted_nodes = []
         
         while queue:
+            # We want deterministic sort for reproducibility
+            queue.sort()
             name = queue.pop(0)
-            sorted_names.append(name)
+            sorted_nodes.append(node_map[name])
             
-            for deps_name, deps in dependencies.items():
-                if name in deps:
-                    in_degree[deps_name] -= 1
-                    if in_degree[deps_name] == 0:
-                        queue.append(deps_name)
-        
-        return [node_map[name] for name in sorted_names if name in node_map]
+            for dependent_name in dependents[name]:
+                in_degree[dependent_name] -= 1
+                if in_degree[dependent_name] == 0:
+                    queue.append(dependent_name)
+                    
+        if len(sorted_nodes) != len(self.nodes):
+            # This should have been caught by cycle detection, but just in case
+            raise ValueError("Topological sort failed: cycle detected or missing nodes")
+            
+        return sorted_nodes
     
     def get_summary(self) -> Dict[str, Any]:
         """Get a summary of the computation graph"""
