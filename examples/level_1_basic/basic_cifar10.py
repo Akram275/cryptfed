@@ -69,7 +69,6 @@ def main():
         use_fhe=True,  # The default scheme is single_key CKKS
         fhe_scheme="bgv",
         aggregator_name="auto", #FedAvg
-        aggretaor_name="my_aggretor"
         num_rounds=5
     )
 
